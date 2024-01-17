@@ -71,6 +71,7 @@ and ptype =
 and type_guts =
     BasicType of basic_type
   | ArrayType of int * ptype
+  | OpenArrayType of openarr
   | RecordType of def list
   | ProcType of proc_data
   | PointerType of ptype ref
@@ -87,6 +88,11 @@ and libproc =
     q_nargs: int;
     q_argtypes: ptype list }
 
+    and openarr = {
+      o_type : ptype;
+      mutable o_array: def ref;
+      mutable o_len : int
+    }
 val symbol_of : def -> Optree.symbol
 val offset_of : def -> int
 
@@ -134,6 +140,8 @@ val empty : environment
 
 (* |row| -- construct array type *)
 val row : int -> ptype -> ptype
+
+val rowRef : def ref -> ptype -> ptype
 
 (* |mk_type| -- construct new (uniquely labelled) type *)
 val mk_type : type_guts -> Mach.metrics -> ptype

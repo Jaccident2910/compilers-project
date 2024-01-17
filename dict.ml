@@ -66,6 +66,8 @@ an element can be added in constant time.
 *)
 
 (* |location| -- runtime locations *)
+
+
 type location =
     Global of Optree.symbol     (* Global (label) *)
   | Local of int                (* Local (offset) *)
@@ -105,10 +107,12 @@ and ptype =
     t_guts: type_guts;          (* Shape of the type *)
     t_rep: Mach.metrics }
 
+
 (* |type_guts| -- internal structure of a type *)
 and type_guts =
     BasicType of basic_type
   | ArrayType of int * ptype
+  | OpenArrayType of openarr
   | RecordType of def list
   | ProcType of proc_data
   | PointerType of ptype ref
@@ -125,6 +129,12 @@ and libproc =
   { q_id: libid;
     q_nargs: int;
     q_argtypes: ptype list }
+
+and openarr = {
+  o_type : ptype;
+  mutable o_array: def ref;
+  mutable o_len : int
+}
 
 (* |IdMap| -- module for mappings from identifiers to another type *)
 module IdMap = 
@@ -160,7 +170,7 @@ let find_def x ds =
       | d::ds -> 
           if x = d.d_tag then d else search ds in
   search ds
-
+  
 (* |can| -- test if application returns without raising |Not_found| *)
 let can f x = try f x; true with Not_found -> false
 
@@ -199,6 +209,15 @@ let character = mk_type (BasicType CharType) char_rep
 let boolean =   mk_type (BasicType BoolType) bool_rep
 let addrtype =  mk_type (BasicType AddrType) addr_rep
 
+(*let dummyRow t = 
+    let r = t.t_rep in
+      mk_type (OpenArrayType t) {r_size = 0; r_align = r.r_align}*)
+
+let rowRef array theType= 
+    mk_type (OpenArrayType {o_type = theType;})
+    {r_size = 8; r_align = 4}
+
+
 let row n t =
   let r = t.t_rep in 
   mk_type (ArrayType (n, t)) { r_size = n * r.r_size; r_align = r.r_align }
@@ -222,6 +241,7 @@ let is_pointer t =
 let bound t =
   match t.t_guts with
       ArrayType (n, t1) -> n
+    | OpenArrayType o1 -> o1.o_len
     | _ -> failwith "bound"
 
 let base_type t =
@@ -244,6 +264,7 @@ let rec same_type t1 t2 =
         n1 = n2 && same_type u1 u2
     | (PointerType _, BasicType x) -> x = AddrType
     | (BasicType x, PointerType _) -> x = AddrType
+    | (OpenArrayType x, ArrayType (n, y)) -> x.o_type = y
     | (_, _) -> t1.t_id = t2.t_id
 
 and match_args fp1 fp2 = 

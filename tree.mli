@@ -77,6 +77,7 @@ and expr_guts =
 and typexpr = 
     TypeName of name 
   | Array of expr * typexpr
+  | OpenArray of typexpr
   | Record of decl list
   | Pointer of typexpr
 

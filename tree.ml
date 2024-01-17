@@ -62,6 +62,7 @@ and expr_guts =
 and typexpr = 
     TypeName of name 
   | Array of expr * typexpr
+  | OpenArray of typexpr
   | Record of decl list
   | Pointer of typexpr
 
@@ -168,6 +169,8 @@ and fExpr e =
         fMeta "($ $)" [fOp w; fExpr e1]
     | Binop (w, e1, e2) -> 
         fMeta "($ $ $)" [fOp w; fExpr e1; fExpr e2]
+    | LenExpr (e) ->
+        fMeta "(LEN $)" [fExpr e]
 
 and fType =
   function

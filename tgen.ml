@@ -93,11 +93,23 @@ let rec gen_addr v =
                 failwith "load_addr"
         end
     | Sub (a, i) ->
+      begin
+      match a.e_type.t_guts with
+      ArrayType _ ->
         let bound_check t =
           if not !boundchk then t else <BOUND, t, <CONST (bound a.e_type)>> in
         <OFFSET, 
           gen_addr a,
           <BINOP Times, bound_check (gen_expr i), <CONST (size_of v.e_type)>>>
+      | OpenArrayType opArray ->
+        let bound_check t = 
+          if not !boundchk then t else <BOUND, t, 
+          <LOADW, <OFFSET, gen_addr a, <CONST 4>>>> in
+        <OFFSET, 
+        (*Get the addr of the array*) <LOADW, gen_addr a>
+        <BINOP Times, bound_check (gen_expr i), <CONST (size_of v.e_type)>>
+        >
+
     | Select (r, x) ->
         let d = get_def x in
         <OFFSET, gen_addr r, <CONST (offset_of d)>>
@@ -129,9 +141,13 @@ and gen_expr e =
                 <BINOP w, gen_expr e1, gen_expr e2>
             | FuncCall (p, args) -> 
                 gen_call p args
-            | LenExpr (array) -> match array.e_type with
-               Array (size, theType) -> <CONST size>
-              | _ -> failwith "Used len on non-array type"
+            | LenExpr (array) -> match array.e_type.t_guts with
+               ArrayType (size, theType) -> <CONST size>
+              | OpenArrayType _ ->
+                let openArrAddr = gen_addr array in
+                  <LOADW, 
+                    <OFFSET, openArrAddr, <CONST addr_rep.r_size>>>
+              | _ -> failwith ("Used len on non-array type") 
             | _ -> failwith "gen_expr"
         end
 
@@ -156,7 +172,16 @@ and gen_arg f a =
         else 
           [gen_addr a]
     | VParamDef ->
-        [gen_addr a]
+      (*THIS IS WHAT I NEEDED*)
+        (match f.d_type.t_guts with
+        OpenArrayType openStuff -> 
+          let arraySize expr = (match expr.e_type.t_guts with
+            ArrayType (n, t) -> n
+            | _ -> failwith ("used non-array with function that takes open array")
+              ) in
+          [gen_addr a; <CONST arraySize a>]
+        | _ ->   [gen_addr a]
+        )
     | PParamDef ->
         begin
           match a.e_guts with 

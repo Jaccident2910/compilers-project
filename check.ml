@@ -75,6 +75,12 @@ let check_binop w t1 t2 =
         boolean
     | _ -> failwith "bad binop"
 
+let check_len t = match (t.e_type.t_guts) with
+            (ArrayType (n,t)) -> row n t
+          | (OpenArrayType t) -> rowRef (t.o_array) (t.o_type)
+          | _ -> failwith "check.ml: bad len application"
+
+
 (* |try_monop| -- propagate constant through unary operation *)
 let try_monop w =
   function
@@ -86,6 +92,13 @@ let try_binop w v1 v2 =
   match (v1, v2) with 
       (Some x1, Some x2) -> Some (do_binop w x1 x2)
     | _ -> None
+
+    (*
+let get_len t1 = 
+  match t1.t_guts with
+    (ArrayType(n, t)) -> Some n;
+    | _ -> failwith("used get_len on a non-array")
+*)
 
 (* |has_value| -- check if object is suitable for use in expressions *)
 let has_value d = 
@@ -138,6 +151,7 @@ and expr_type e env =
         begin
           match t1.t_guts with
               ArrayType (upb, u1) -> u1
+            | OpenArrayType u1 -> u1.o_type
             | _ -> sem_error "subscripting a non-array" []
         end
     | Select (e1, x) ->
@@ -176,6 +190,9 @@ and expr_type e env =
         let t = check_binop w (check_expr e1 env) (check_expr e2 env) in
         e.e_value <- try_binop w e1.e_value e2.e_value;
         t
+    | LenExpr (e) -> 
+        let t = check_len e in
+        integer
 
 (* |check_funcall| -- check a function or procedure call *)
 and check_funcall f args env v =
@@ -201,7 +218,23 @@ and check_arg formal arg env =
       CParamDef | VParamDef ->
         let t1 = check_expr arg env in
         if not (same_type formal.d_type t1) then
-          sem_error "argument has wrong type" [];
+          begin
+          match formal.d_type.t_guts with
+            OpenArrayType arrayPtype -> let ArrayType (n, t2) = t1.t_guts in 
+                if (arrayPtype.o_type <> t2) then
+                  sem_error "check.ml: wrong type given to open array" []
+                else
+                  let argDef = (match arg.e_guts with
+                  Variable varName -> lookup_def varName env
+                  | _ -> sem_error "check.ml: what have you done?? How did you use a non-variable array?" []
+                  ) in
+                  arrayPtype.o_array <- ref argDef
+                  let argLen = (match arg.e_type with
+                  ArrayType (n,t) -> n
+                  | _ -> sem_error "check.ml: you've done it again?!?" []) in
+                  arrayPtype.o_len <- argLen 
+            | _ -> sem_error "argument has wrong type" []
+          end;
         if formal.d_kind = VParamDef then 
           check_var arg true
     | PParamDef ->
@@ -256,9 +289,9 @@ and check_libcall q args env v =
     | (ArgvProc, [e1; e2]) ->
         let t1 = check_expr e1 env
         and t2 = check_expr e2 env in
-        if not (same_type t1 integer) || not (is_string t2) then
-          sem_error "type error in parameters of argv" [];
-        check_var e2 true
+          if not (same_type t1 integer) || not (is_string t2) then
+            sem_error "type error in parameters of argv" [];
+          check_var e2 true
     | (OpenIn, [e1]) ->
         let t1 = check_expr e1 env in
         if not (is_string t1) then
@@ -459,6 +492,9 @@ let rec check_typexpr te env =
         if not (same_type t1 integer) then
           sem_error "upper bound must be an integer" [];
         row v1 t2
+    | OpenArray (arrayType) -> 
+        let newSize = ref (int_rep.r_size + addr_rep.r_size) in
+            
     | Record fields ->
         let env' = check_decls fields (new_block env) in
         let defs = top_block env' in
