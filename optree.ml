@@ -26,7 +26,7 @@ type symbol = string
 (* |op| -- type of picoPascal operators *)
 type op = Plus | Minus | Times | Div | Mod | Eq 
   | Uminus | Lt | Gt | Leq | Geq | Neq | And | Or | Not | Lsl
-  | Lsr | Asr | BitAnd | BitOr | BitNot
+  | Lsr | Asr | BitAnd | BitOr | BitNot 
 
 let op_name =
   function

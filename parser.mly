@@ -85,8 +85,8 @@ formal_decls :
   | formal_decl SEMI formal_decls       { $1 :: $3 } ;
 
 formal_decl :   
-    ident_list COLON typexpr            { VarDecl (CParamDef, $1, $3) }
-  | VAR ident_list COLON typexpr        { VarDecl (VParamDef, $2, $4) }
+    ident_list COLON formal_typexpr            { VarDecl (CParamDef, $1, $3) }
+  | VAR ident_list COLON formal_typexpr        { VarDecl (VParamDef, $2, $4) }
   | proc_heading                        { PParamDecl $1 } ;
 
 return_type :
@@ -95,7 +95,7 @@ return_type :
 
 stmts : 
     stmt_list                           { seq $1 } ;
-
+                                               
 stmt_list :
     stmt                                { [$1] }
   | stmt SEMI stmt_list                 { $1 :: $3 } ;
@@ -118,7 +118,7 @@ stmt1 :
   | REPEAT stmts UNTIL expr             { RepeatStmt ($2, $4) }
   | FOR name ASSIGN expr TO expr DO stmts END 
                                         { let v = make_expr (Variable $2) in
-                                          ForStmt (v, $4, $6, $8, ref None) } 
+                                         ForStmt (v, $4, $6, $8, ref None) } 
   | CASE expr OF arms else_part END     { CaseStmt ($2, $4, $5) } ;
 
 elses :
@@ -185,6 +185,14 @@ variable :
   | variable SUB expr BUS               { make_expr (Sub ($1, $3)) }
   | variable DOT name                   { make_expr (Select ($1, $3)) }
   | variable ARROW                      { make_expr (Deref $1) } ;
+
+formal_typexpr :       
+    name                                { TypeName $1 }
+  | ARRAY expr OF typexpr               { Array ($2, $4) }
+  | ARRAY OF typexpr                    { OpenArray ($3) }
+  | RECORD fields END                   { Record $2 }
+  | POINTER TO typexpr                  { Pointer $3 } ;
+
 
 typexpr :       
     name                                { TypeName $1 }
