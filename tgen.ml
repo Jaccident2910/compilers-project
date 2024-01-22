@@ -62,6 +62,8 @@ let rec numargs i =
       [] -> []
     | (x::xs) -> <ARG i, x> :: numargs (i+1) xs
 
+
+
 (* |libcall| -- code for library call *)
 let libcall sym args rtype =
   let n = List.length args in
@@ -101,13 +103,63 @@ let rec gen_addr v =
         <OFFSET, 
           gen_addr a,
           <BINOP Times, bound_check (gen_expr i), <CONST (size_of v.e_type)>>>
+      | HeapArrayType _ -> 
+        ( match a.e_guts with
+        Deref p ->
+          let bound_check t = 
+            if not !boundchk then t else <BOUND, t,
+            <LOADW, gen_expr p>
+            >
+          in
+          <OFFSET, gen_addr a,  
+          <BINOP Times, <BINOP Plus, <CONST 1>, bound_check (gen_expr i)>, <CONST (size_of v.e_type)>>>
+        | _ -> failwith ("tgen.ml: in subscript, accessed heapArray without pointer? PANIC"))
       | OpenArrayType opArray ->
+        
         let bound_check t = 
           if not !boundchk then t else <BOUND, t, 
-          <LOADW, <OFFSET, gen_addr a, <CONST 4>>>> in
+          let addressOfLen = 
+            (match a.e_guts with
+              Variable vName -> address (get_def vName)
+              | Deref p -> gen_expr p
+              | _ -> failwith ("used array subscription on a non-variable/pointer")
+            ) in 
+            <LOADW, 
+              <OFFSET, addressOfLen, <CONST addr_rep.r_size>>>
+          > in
         <OFFSET, 
-        (*Get the addr of the array*) <LOADW, gen_addr a>
+        (*Get the addr of the array*) (gen_addr a),
         <BINOP Times, bound_check (gen_expr i), <CONST (size_of v.e_type)>>
+        >
+      end
+    | Slice (a, i, j) ->
+      let arrayAddr = gen_addr a 
+      and iVal = gen_expr i 
+      and jVal = gen_expr j 
+      and typeSize = ( match a.e_type.t_guts with
+      ArrayType (n,t1) -> t1.t_rep.r_size
+      | OpenArrayType t1 -> t1.t_rep.r_size
+      | HeapArrayType t1 -> t1.t_rep.r_size
+      ) 
+      and arrayLength = ( match a.e_type.t_guts with
+        ArrayType (n,_) -> <CONST n>
+        | OpenArrayType _ -> (let addressOfLen = 
+          (match a.e_guts with
+            Variable vName -> address (get_def vName)
+            | _ -> failwith ("used slice on a non-variable address??")
+          ) in 
+          <LOADW, 
+            <OFFSET, addressOfLen, <CONST addr_rep.r_size>>>)
+        | HeapArrayType _ -> (match a.e_guts with
+        Deref p -> <LOADW, gen_expr p>
+        | _ -> failwith ("tgen.ml: Had non-pointer access to heapArray slice address???")) 
+      )
+        in let boundCheck =
+        if not !boundchk then iVal else 
+          <BOUND, iVal, <BOUND, jVal, arrayLength>>
+        in
+        <OFFSET, arrayAddr,
+        <BINOP Times, boundCheck, <CONST typeSize>>
         >
 
     | Select (r, x) ->
@@ -143,11 +195,20 @@ and gen_expr e =
                 gen_call p args
             | LenExpr (array) -> match array.e_type.t_guts with
                ArrayType (size, theType) -> <CONST size>
+              | HeapArrayType _ -> 
+                (match array.e_guts with
+                Deref p -> <LOADW, gen_expr p>
+                | _ -> failwith ("tgen.ml: Had non-pointer access to heapArray???"))
               | OpenArrayType _ ->
-                let openArrAddr = gen_addr array in
+                let addressOfLen = 
+                  (match array.e_guts with
+                    Variable vName -> address (get_def vName)
+                    | _ -> failwith ("used len on a non-variable")
+                  ) in 
                   <LOADW, 
-                    <OFFSET, openArrAddr, <CONST addr_rep.r_size>>>
-              | _ -> failwith ("Used len on non-array type") 
+                    <OFFSET, addressOfLen, <CONST addr_rep.r_size>>>
+                
+              | _ -> failwith ("Used len on non-array type " ^ (print_typeguts array.e_type.t_guts)) 
             | _ -> failwith "gen_expr"
         end
 
@@ -170,16 +231,51 @@ and gen_arg f a =
         if scalar f.d_type || is_pointer f.d_type then 
           [gen_expr a]
         else 
-          [gen_addr a]
+          (match f.d_type.t_guts with
+          OpenArrayType openStuff -> 
+            (match a.e_type.t_guts with
+            ArrayType(n,t) ->( match a.e_guts with
+            | Slice(a,i,j) -> let sliceLen = if not !boundchk then <BINOP Minus, gen_expr j, gen_expr i>
+            else <BINOP Minus, <BOUND, gen_expr j, <CONST n>>, gen_expr i>  in
+              [<OFFSET, gen_addr a, <BINOP Times, gen_expr i, <CONST t.t_rep.r_size>>>;
+              sliceLen]
+            
+            | _ -> [gen_addr a; <CONST n>])
+            | HeapArrayType _ -> ( match a.e_guts with
+            Deref p -> [<OFFSET, gen_expr p, <CONST int_rep.r_size>>; <LOADW, gen_expr p>]
+            | Slice (ap, i,j) -> 
+              let sliceLen = if not !boundchk then <BINOP Minus, gen_expr j, gen_expr i>
+                else <BINOP Minus, <BOUND, gen_expr j, <LOADW, gen_addr ap>>, gen_expr i> 
+              and elemSize = ( match ap.e_type.t_guts with
+                ArrayType (n, t2) -> t2.t_rep.r_size
+                | OpenArrayType t2 -> t2.t_rep.r_size
+                | HeapArrayType t2 -> t2.t_rep.r_size
+                | _ -> failwith ("tgen.ml: You've messed up again")
+              )
+            in 
+              [<OFFSET, gen_addr ap, 
+              <BINOP Times, <BINOP Plus, gen_expr i, <CONST 1>>, <CONST elemSize>>
+              >
+              ;
+              sliceLen]
+            | _ -> failwith ("tgen.ml: this simply should not be possible.")
+            )
+            
+            | _ -> failwith ("used non-array with function that takes open array")) 
+          | _ ->   [gen_addr a]
+          )
     | VParamDef ->
       (*THIS IS WHAT I NEEDED*)
-        (match f.d_type.t_guts with
-        OpenArrayType openStuff -> 
-          let arraySize expr = (match expr.e_type.t_guts with
-            ArrayType (n, t) -> n
-            | _ -> failwith ("used non-array with function that takes open array")
-              ) in
-          [gen_addr a; <CONST arraySize a>]
+      (match f.d_type.t_guts with
+      OpenArrayType openStuff -> 
+        (match a.e_type.t_guts with
+        ArrayType(n,t) ->[gen_addr a; <CONST n>] 
+        | HeapArrayType _ -> ( match a.e_guts with
+        Deref p -> [<OFFSET, gen_expr p, <CONST addr_rep.r_size>>; <LOADW, gen_expr p>]
+        | _ -> failwith ("tgen.ml: this simply should not be possible.")
+        )
+        
+        | _ -> failwith ("used non-array with function that takes open array")) 
         | _ ->   [gen_addr a]
         )
     | PParamDef ->
@@ -205,6 +301,23 @@ and gen_libcall q args =
     | (NewProc, [e]) ->
         let size = size_of (base_type e.e_type) in
         <STOREW, libcall "palloc" [<CONST size>] addrtype, gen_addr e>
+    | (NewArr, [ptr; n]) ->
+          let pointedType = (match ptr.e_type.t_guts with
+            PointerType t1 -> (match (!t1).t_guts with
+              HeapArrayType t2 -> t2
+              | _ -> !t1
+            )
+            | _ -> failwith ("tgen.ml: called newrow(p,n) with non-pointer p")
+          ) in
+          let extra_spaces = if pointedType.t_rep.r_size = 1 then <CONST 4> else <CONST 1> in
+          <SEQ,
+            <STOREW, libcall "palloc2" [<BINOP Plus, (gen_expr n), extra_spaces>; 
+            <CONST pointedType.t_rep.r_size>] addrtype, gen_addr ptr>
+            ,
+            <STOREW, gen_expr n, gen_expr ptr> 
+          >
+          (*Calls palloc2 with n+1 spots: this assumes the size of an array item is 4. TODO: fix this.*)
+          (*we then store the size of the array in the first slot of the array.*)
     | (ArgcFun, []) ->
         libcall "argc" [] integer
     | (ArgvProc, [e1; e2]) ->

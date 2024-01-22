@@ -75,10 +75,7 @@ let check_binop w t1 t2 =
         boolean
     | _ -> failwith "bad binop"
 
-let check_len t = match (t.e_type.t_guts) with
-            (ArrayType (n,t)) -> row n t
-          | (OpenArrayType t) -> rowRef (t.o_array) (t.o_type)
-          | _ -> failwith "check.ml: bad len application"
+
 
 
 (* |try_monop| -- propagate constant through unary operation *)
@@ -119,6 +116,7 @@ let rec check_var e addressible =
                 sem_error "$ is not a variable" [fId x.x_name]
         end
     | Sub (a, i) -> check_var a addressible
+    | Slice (a,i,j) -> check_var a addressible
     | Select (r, x) -> check_var r addressible
     | Deref p -> ()
     | _ -> sem_error "a variable is needed here" []
@@ -151,9 +149,17 @@ and expr_type e env =
         begin
           match t1.t_guts with
               ArrayType (upb, u1) -> u1
-            | OpenArrayType u1 -> u1.o_type
+            | OpenArrayType u1 -> u1
+            | HeapArrayType u1 -> u1
             | _ -> sem_error "subscripting a non-array" []
         end
+    | Slice (array, n1, n2) -> 
+      let t1 = check_expr array env 
+      and t2 = check_expr n1 env 
+      and t3 = check_expr n2 env in
+        if not ((same_type t2 integer) && (same_type t3 integer)) then
+          sem_error "arguments of slice are not integers" [];
+        t1
     | Select (e1, x) ->
         let t1 = check_expr e1 env in
         err_line := x.x_line;
@@ -191,8 +197,13 @@ and expr_type e env =
         e.e_value <- try_binop w e1.e_value e2.e_value;
         t
     | LenExpr (e) -> 
-        let t = check_len e in
-        integer
+        let t = check_expr e env in
+        begin match t.t_guts with
+          ArrayType (n,t2) -> integer
+          | OpenArrayType t2 -> integer
+          | HeapArrayType t2 -> integer
+          | _ -> sem_error "Used len on a non-array" []
+        end
 
 (* |check_funcall| -- check a function or procedure call *)
 and check_funcall f args env v =
@@ -220,20 +231,10 @@ and check_arg formal arg env =
         if not (same_type formal.d_type t1) then
           begin
           match formal.d_type.t_guts with
-            OpenArrayType arrayPtype -> let ArrayType (n, t2) = t1.t_guts in 
-                if (arrayPtype.o_type <> t2) then
-                  sem_error "check.ml: wrong type given to open array" []
-                else
-                  let argDef = (match arg.e_guts with
-                  Variable varName -> lookup_def varName env
-                  | _ -> sem_error "check.ml: what have you done?? How did you use a non-variable array?" []
-                  ) in
-                  arrayPtype.o_array <- ref argDef
-                  let argLen = (match arg.e_type with
-                  ArrayType (n,t) -> n
-                  | _ -> sem_error "check.ml: you've done it again?!?" []) in
-                  arrayPtype.o_len <- argLen 
-            | _ -> sem_error "argument has wrong type" []
+            OpenArrayType arrayPtype -> (match t1.t_guts with 
+            ArrayType (n, t2) -> if t2 <> arrayPtype then sem_error "check.ml: open array assigned array of wrong type" []
+            | HeapArrayType t2 -> if t2 <> arrayPtype then sem_error "check.ml: open array assigned heap array of wrong type" [] 
+            | _ -> sem_error "argument has wrong type" [])
           end;
         if formal.d_kind = VParamDef then 
           check_var arg true
@@ -493,8 +494,11 @@ let rec check_typexpr te env =
           sem_error "upper bound must be an integer" [];
         row v1 t2
     | OpenArray (arrayType) -> 
-        let newSize = ref (int_rep.r_size + addr_rep.r_size) in
-            
+        let t1 = check_typexpr arrayType env in
+        rowRef t1
+    | HeapArray (arrayType) -> 
+        let t1 = check_typexpr arrayType env in
+        heapArrRef t1
     | Record fields ->
         let env' = check_decls fields (new_block env) in
         let defs = top_block env' in
@@ -641,6 +645,7 @@ let init_env =
       ("read_char", libproc ReadChar 1 [character], voidtype);
       ("exit", libproc ExitProc 1 [integer], voidtype);
       ("new", libproc NewProc 1 [], voidtype);
+      ("newrow", libproc NewArr 2 [addrtype; integer], voidtype); (*This code feels wrong.*)
       ("argc", libproc ArgcFun 0 [], integer);
       ("argv", libproc ArgvProc 2 [], voidtype);
       ("lsl", operator Lsl [integer; integer], integer);

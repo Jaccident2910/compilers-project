@@ -112,31 +112,38 @@
 
   78  variable : name
   79           | variable SUB expr BUS
-  80           | variable DOT name
-  81           | variable ARROW
+  80           | variable SUB expr DOT DOT expr RPAR
+  81           | variable DOT name
+  82           | variable ARROW
 
-  82  formal_typexpr : name
-  83                 | ARRAY expr OF typexpr
-  84                 | ARRAY OF typexpr
-  85                 | RECORD fields END
-  86                 | POINTER TO typexpr
+  83  formal_typexpr : name
+  84                 | ARRAY expr OF typexpr
+  85                 | ARRAY OF typexpr
+  86                 | RECORD fields END
+  87                 | POINTER TO pointer_typexpr
 
-  87  typexpr : name
-  88          | ARRAY expr OF typexpr
-  89          | RECORD fields END
-  90          | POINTER TO typexpr
+  88  pointer_typexpr : name
+  89                  | ARRAY expr OF typexpr
+  90                  | ARRAY OF typexpr
+  91                  | RECORD fields END
+  92                  | POINTER TO pointer_typexpr
 
-  91  fields : field_decl opt_semi
-  92         | field_decl SEMI fields
+  93  typexpr : name
+  94          | ARRAY expr OF typexpr
+  95          | RECORD fields END
+  96          | POINTER TO pointer_typexpr
 
-  93  field_decl : ident_list COLON typexpr
+  97  fields : field_decl opt_semi
+  98         | field_decl SEMI fields
 
-  94  opt_semi : SEMI
-  95           |
+  99  field_decl : ident_list COLON typexpr
 
-  96  name : IDENT
+ 100  opt_semi : SEMI
+ 101           |
 
-  97  %entry% : '\001' program
+ 102  name : IDENT
+
+ 103  %entry% : '\001' program
 
 state 0
 	$accept : . %entry% $end  (0)
@@ -148,7 +155,7 @@ state 0
 
 
 state 1
-	%entry% : '\001' . program  (97)
+	%entry% : '\001' . program  (103)
 	decl_list : .  (3)
 
 	CONST  shift 3
@@ -212,9 +219,9 @@ state 6
 
 
 state 7
-	%entry% : '\001' program .  (97)
+	%entry% : '\001' program .  (103)
 
-	.  reduce 97
+	.  reduce 103
 
 
 state 8
@@ -289,9 +296,9 @@ state 15
 
 
 state 16
-	name : IDENT .  (96)
+	name : IDENT .  (102)
 
-	.  reduce 96
+	.  reduce 102
 
 
 state 17
@@ -729,11 +736,13 @@ state 53
 	actuals  goto 93
 
 
+54: shift/reduce conflict (shift 94, reduce 64) on DOT
 state 54
 	factor : variable .  (64)
 	variable : variable . SUB expr BUS  (79)
-	variable : variable . DOT name  (80)
-	variable : variable . ARROW  (81)
+	variable : variable . SUB expr DOT DOT expr RPAR  (80)
+	variable : variable . DOT name  (81)
+	variable : variable . ARROW  (82)
 
 	DOT  shift 94
 	SUB  shift 95
@@ -771,6 +780,7 @@ state 55
 	MULOP  reduce 56
 	RELOP  reduce 56
 	SEMI  reduce 56
+	DOT  reduce 56
 	COLON  reduce 56
 	RPAR  reduce 56
 	COMMA  reduce 56
@@ -796,6 +806,7 @@ state 56
 	ADDOP  reduce 59
 	RELOP  reduce 59
 	SEMI  reduce 59
+	DOT  reduce 59
 	COLON  reduce 59
 	RPAR  reduce 59
 	COMMA  reduce 59
@@ -882,7 +893,7 @@ state 65
 
 
 state 66
-	typexpr : ARRAY . expr OF typexpr  (88)
+	typexpr : ARRAY . expr OF typexpr  (94)
 
 	IDENT  shift 16
 	NUMBER  shift 44
@@ -904,7 +915,7 @@ state 66
 
 
 state 67
-	typexpr : RECORD . fields END  (89)
+	typexpr : RECORD . fields END  (95)
 
 	IDENT  shift 21
 	.  error
@@ -915,7 +926,7 @@ state 67
 
 
 state 68
-	typexpr : POINTER . TO typexpr  (90)
+	typexpr : POINTER . TO pointer_typexpr  (96)
 
 	TO  shift 109
 	.  error
@@ -929,9 +940,9 @@ state 69
 
 
 state 70
-	typexpr : name .  (87)
+	typexpr : name .  (93)
 
-	.  reduce 87
+	.  reduce 93
 
 
 state 71
@@ -1124,8 +1135,9 @@ state 82
 state 83
 	stmt1 : variable . ASSIGN expr  (36)
 	variable : variable . SUB expr BUS  (79)
-	variable : variable . DOT name  (80)
-	variable : variable . ARROW  (81)
+	variable : variable . SUB expr DOT DOT expr RPAR  (80)
+	variable : variable . DOT name  (81)
+	variable : variable . ARROW  (82)
 
 	DOT  shift 94
 	SUB  shift 95
@@ -1169,6 +1181,7 @@ state 87
 	MULOP  reduce 73
 	ADDOP  reduce 73
 	SEMI  reduce 73
+	DOT  reduce 73
 	COLON  reduce 73
 	RPAR  reduce 73
 	COMMA  reduce 73
@@ -1271,7 +1284,7 @@ state 93
 
 
 state 94
-	variable : variable DOT . name  (80)
+	variable : variable DOT . name  (81)
 
 	IDENT  shift 16
 	.  error
@@ -1281,6 +1294,7 @@ state 94
 
 state 95
 	variable : variable SUB . expr BUS  (79)
+	variable : variable SUB . expr DOT DOT expr RPAR  (80)
 
 	IDENT  shift 16
 	NUMBER  shift 44
@@ -1302,9 +1316,9 @@ state 95
 
 
 state 96
-	variable : variable ARROW .  (81)
+	variable : variable ARROW .  (82)
 
-	.  reduce 81
+	.  reduce 82
 
 
 state 97
@@ -1415,7 +1429,7 @@ state 104
 state 105
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
-	typexpr : ARRAY expr . OF typexpr  (88)
+	typexpr : ARRAY expr . OF typexpr  (94)
 
 	RELOP  shift 89
 	EQUAL  shift 91
@@ -1424,41 +1438,41 @@ state 105
 
 
 state 106
-	field_decl : ident_list . COLON typexpr  (93)
+	field_decl : ident_list . COLON typexpr  (99)
 
 	COLON  shift 141
 	.  error
 
 
 state 107
-	typexpr : RECORD fields . END  (89)
+	typexpr : RECORD fields . END  (95)
 
 	END  shift 142
 	.  error
 
 
 state 108
-	fields : field_decl . opt_semi  (91)
-	fields : field_decl . SEMI fields  (92)
-	opt_semi : .  (95)
+	fields : field_decl . opt_semi  (97)
+	fields : field_decl . SEMI fields  (98)
+	opt_semi : .  (101)
 
 	SEMI  shift 143
-	END  reduce 95
+	END  reduce 101
 
 	opt_semi  goto 144
 
 
 state 109
-	typexpr : POINTER TO . typexpr  (90)
+	typexpr : POINTER TO . pointer_typexpr  (96)
 
 	IDENT  shift 16
-	ARRAY  shift 66
-	RECORD  shift 67
-	POINTER  shift 68
+	ARRAY  shift 145
+	RECORD  shift 146
+	POINTER  shift 147
 	.  error
 
-	typexpr  goto 145
-	name  goto 70
+	name  goto 148
+	pointer_typexpr  goto 149
 
 
 state 110
@@ -1486,7 +1500,7 @@ state 113
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	THEN  shift 146
+	THEN  shift 150
 	.  error
 
 
@@ -1518,21 +1532,21 @@ state 116
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	DO  shift 147
+	DO  shift 151
 	.  error
 
 
 state 117
 	stmt1 : REPEAT stmts . UNTIL expr  (41)
 
-	UNTIL  shift 148
+	UNTIL  shift 152
 	.  error
 
 
 state 118
 	stmt1 : FOR name . ASSIGN expr TO expr DO stmts END  (42)
 
-	ASSIGN  shift 149
+	ASSIGN  shift 153
 	.  error
 
 
@@ -1543,7 +1557,7 @@ state 119
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	OF  shift 150
+	OF  shift 154
 	.  error
 
 
@@ -1567,7 +1581,7 @@ state 121
 	NIL  shift 51
 	.  error
 
-	expr  goto 151
+	expr  goto 155
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -1593,6 +1607,7 @@ state 123
 	MULOP  reduce 57
 	RELOP  reduce 57
 	SEMI  reduce 57
+	DOT  reduce 57
 	COLON  reduce 57
 	RPAR  reduce 57
 	COMMA  reduce 57
@@ -1621,6 +1636,7 @@ state 124
 	MULOP  reduce 58
 	RELOP  reduce 58
 	SEMI  reduce 58
+	DOT  reduce 58
 	COLON  reduce 58
 	RPAR  reduce 58
 	COMMA  reduce 58
@@ -1650,7 +1666,7 @@ state 126
 	expr_list : expr . COMMA expr_list  (77)
 
 	RELOP  shift 89
-	COMMA  shift 152
+	COMMA  shift 156
 	EQUAL  shift 91
 	RPAR  reduce 76
 
@@ -1658,23 +1674,25 @@ state 126
 state 127
 	actuals : LPAR expr_list . RPAR  (75)
 
-	RPAR  shift 153
+	RPAR  shift 157
 	.  error
 
 
 state 128
-	variable : variable DOT name .  (80)
+	variable : variable DOT name .  (81)
 
-	.  reduce 80
+	.  reduce 81
 
 
 state 129
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
 	variable : variable SUB expr . BUS  (79)
+	variable : variable SUB expr . DOT DOT expr RPAR  (80)
 
 	RELOP  shift 89
-	BUS  shift 154
+	DOT  shift 158
+	BUS  shift 159
 	EQUAL  shift 91
 	.  error
 
@@ -1688,6 +1706,7 @@ state 130
 	ADDOP  reduce 60
 	RELOP  reduce 60
 	SEMI  reduce 60
+	DOT  reduce 60
 	COLON  reduce 60
 	RPAR  reduce 60
 	COMMA  reduce 60
@@ -1714,6 +1733,7 @@ state 131
 	ADDOP  reduce 61
 	RELOP  reduce 61
 	SEMI  reduce 61
+	DOT  reduce 61
 	COLON  reduce 61
 	RPAR  reduce 61
 	COMMA  reduce 61
@@ -1747,12 +1767,12 @@ state 133
 	.  error
 
 	name  goto 137
-	formal_typexpr  goto 155
+	formal_typexpr  goto 160
 
 
 state 134
-	formal_typexpr : ARRAY . expr OF typexpr  (83)
-	formal_typexpr : ARRAY . OF typexpr  (84)
+	formal_typexpr : ARRAY . expr OF typexpr  (84)
+	formal_typexpr : ARRAY . OF typexpr  (85)
 
 	IDENT  shift 16
 	NUMBER  shift 44
@@ -1760,13 +1780,13 @@ state 134
 	STRING  shift 46
 	LPAR  shift 47
 	MINUS  shift 48
-	OF  shift 156
+	OF  shift 161
 	LEN  shift 49
 	NOT  shift 50
 	NIL  shift 51
 	.  error
 
-	expr  goto 157
+	expr  goto 162
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -1775,27 +1795,27 @@ state 134
 
 
 state 135
-	formal_typexpr : RECORD . fields END  (85)
+	formal_typexpr : RECORD . fields END  (86)
 
 	IDENT  shift 21
 	.  error
 
 	ident_list  goto 106
-	fields  goto 158
+	fields  goto 163
 	field_decl  goto 108
 
 
 state 136
-	formal_typexpr : POINTER . TO typexpr  (86)
+	formal_typexpr : POINTER . TO pointer_typexpr  (87)
 
-	TO  shift 159
+	TO  shift 164
 	.  error
 
 
 state 137
-	formal_typexpr : name .  (82)
+	formal_typexpr : name .  (83)
 
-	.  reduce 82
+	.  reduce 83
 
 
 state 138
@@ -1811,7 +1831,7 @@ state 139
 
 
 state 140
-	typexpr : ARRAY expr OF . typexpr  (88)
+	typexpr : ARRAY expr OF . typexpr  (94)
 
 	IDENT  shift 16
 	ARRAY  shift 66
@@ -1819,12 +1839,12 @@ state 140
 	POINTER  shift 68
 	.  error
 
-	typexpr  goto 160
+	typexpr  goto 165
 	name  goto 70
 
 
 state 141
-	field_decl : ident_list COLON . typexpr  (93)
+	field_decl : ident_list COLON . typexpr  (99)
 
 	IDENT  shift 16
 	ARRAY  shift 66
@@ -1832,41 +1852,89 @@ state 141
 	POINTER  shift 68
 	.  error
 
-	typexpr  goto 161
+	typexpr  goto 166
 	name  goto 70
 
 
 state 142
-	typexpr : RECORD fields END .  (89)
+	typexpr : RECORD fields END .  (95)
 
-	.  reduce 89
+	.  reduce 95
 
 
 state 143
-	fields : field_decl SEMI . fields  (92)
-	opt_semi : SEMI .  (94)
+	fields : field_decl SEMI . fields  (98)
+	opt_semi : SEMI .  (100)
 
 	IDENT  shift 21
-	END  reduce 94
+	END  reduce 100
 
 	ident_list  goto 106
-	fields  goto 162
+	fields  goto 167
 	field_decl  goto 108
 
 
 state 144
-	fields : field_decl opt_semi .  (91)
+	fields : field_decl opt_semi .  (97)
 
-	.  reduce 91
+	.  reduce 97
 
 
 state 145
-	typexpr : POINTER TO typexpr .  (90)
+	pointer_typexpr : ARRAY . expr OF typexpr  (89)
+	pointer_typexpr : ARRAY . OF typexpr  (90)
 
-	.  reduce 90
+	IDENT  shift 16
+	NUMBER  shift 44
+	CHAR  shift 45
+	STRING  shift 46
+	LPAR  shift 47
+	MINUS  shift 48
+	OF  shift 168
+	LEN  shift 49
+	NOT  shift 50
+	NIL  shift 51
+	.  error
+
+	expr  goto 169
+	name  goto 53
+	variable  goto 54
+	simple  goto 55
+	term  goto 56
+	factor  goto 57
 
 
 state 146
+	pointer_typexpr : RECORD . fields END  (91)
+
+	IDENT  shift 21
+	.  error
+
+	ident_list  goto 106
+	fields  goto 170
+	field_decl  goto 108
+
+
+state 147
+	pointer_typexpr : POINTER . TO pointer_typexpr  (92)
+
+	TO  shift 171
+	.  error
+
+
+state 148
+	pointer_typexpr : name .  (88)
+
+	.  reduce 88
+
+
+state 149
+	typexpr : POINTER TO pointer_typexpr .  (96)
+
+	.  reduce 96
+
+
+state 150
 	stmt1 : IF expr THEN . stmts elses END  (39)
 	line : .  (34)
 
@@ -1883,13 +1951,13 @@ state 146
 	ELSIF  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 163
+	stmts  goto 172
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 147
+state 151
 	stmt1 : WHILE expr DO . stmts END  (40)
 	line : .  (34)
 
@@ -1904,13 +1972,13 @@ state 147
 	FOR  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 164
+	stmts  goto 173
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 148
+state 152
 	stmt1 : REPEAT stmts UNTIL . expr  (41)
 
 	IDENT  shift 16
@@ -1924,7 +1992,7 @@ state 148
 	NIL  shift 51
 	.  error
 
-	expr  goto 165
+	expr  goto 174
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -1932,7 +2000,7 @@ state 148
 	factor  goto 57
 
 
-state 149
+state 153
 	stmt1 : FOR name ASSIGN . expr TO expr DO stmts END  (42)
 
 	IDENT  shift 16
@@ -1946,7 +2014,7 @@ state 149
 	NIL  shift 51
 	.  error
 
-	expr  goto 166
+	expr  goto 175
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -1954,7 +2022,7 @@ state 149
 	factor  goto 57
 
 
-state 150
+state 154
 	stmt1 : CASE expr OF . arms else_part END  (43)
 
 	IDENT  shift 16
@@ -1968,17 +2036,17 @@ state 150
 	NIL  shift 51
 	.  error
 
-	expr  goto 167
+	expr  goto 176
 	name  goto 53
 	variable  goto 54
-	arms  goto 168
-	arm  goto 169
+	arms  goto 177
+	arm  goto 178
 	simple  goto 55
 	term  goto 56
 	factor  goto 57
 
 
-state 151
+state 155
 	stmt1 : variable ASSIGN expr .  (36)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
@@ -1993,7 +2061,7 @@ state 151
 	ELSIF  reduce 36
 
 
-state 152
+state 156
 	expr_list : expr COMMA . expr_list  (77)
 
 	IDENT  shift 16
@@ -2013,108 +2081,159 @@ state 152
 	simple  goto 55
 	term  goto 56
 	factor  goto 57
-	expr_list  goto 170
+	expr_list  goto 179
 
 
-state 153
+state 157
 	actuals : LPAR expr_list RPAR .  (75)
 
 	.  reduce 75
 
 
-state 154
+state 158
+	variable : variable SUB expr DOT . DOT expr RPAR  (80)
+
+	DOT  shift 180
+	.  error
+
+
+state 159
 	variable : variable SUB expr BUS .  (79)
 
 	.  reduce 79
 
 
-state 155
+state 160
 	formal_decl : VAR ident_list COLON formal_typexpr .  (25)
 
 	.  reduce 25
 
 
-state 156
-	formal_typexpr : ARRAY OF . typexpr  (84)
-
-	IDENT  shift 16
-	ARRAY  shift 66
-	RECORD  shift 67
-	POINTER  shift 68
-	.  error
-
-	typexpr  goto 171
-	name  goto 70
-
-
-state 157
-	expr : expr . RELOP simple  (57)
-	expr : expr . EQUAL simple  (58)
-	formal_typexpr : ARRAY expr . OF typexpr  (83)
-
-	RELOP  shift 89
-	EQUAL  shift 91
-	OF  shift 172
-	.  error
-
-
-state 158
-	formal_typexpr : RECORD fields . END  (85)
-
-	END  shift 173
-	.  error
-
-
-state 159
-	formal_typexpr : POINTER TO . typexpr  (86)
-
-	IDENT  shift 16
-	ARRAY  shift 66
-	RECORD  shift 67
-	POINTER  shift 68
-	.  error
-
-	typexpr  goto 174
-	name  goto 70
-
-
-state 160
-	typexpr : ARRAY expr OF typexpr .  (88)
-
-	.  reduce 88
-
-
 state 161
-	field_decl : ident_list COLON typexpr .  (93)
+	formal_typexpr : ARRAY OF . typexpr  (85)
 
-	.  reduce 93
+	IDENT  shift 16
+	ARRAY  shift 66
+	RECORD  shift 67
+	POINTER  shift 68
+	.  error
+
+	typexpr  goto 181
+	name  goto 70
 
 
 state 162
-	fields : field_decl SEMI fields .  (92)
+	expr : expr . RELOP simple  (57)
+	expr : expr . EQUAL simple  (58)
+	formal_typexpr : ARRAY expr . OF typexpr  (84)
 
-	.  reduce 92
-
-
-state 163
-	stmt1 : IF expr THEN stmts . elses END  (39)
-	elses : .  (44)
-
-	ELSE  shift 175
-	ELSIF  shift 176
-	END  reduce 44
-
-	elses  goto 177
-
-
-state 164
-	stmt1 : WHILE expr DO stmts . END  (40)
-
-	END  shift 178
+	RELOP  shift 89
+	EQUAL  shift 91
+	OF  shift 182
 	.  error
 
 
+state 163
+	formal_typexpr : RECORD fields . END  (86)
+
+	END  shift 183
+	.  error
+
+
+state 164
+	formal_typexpr : POINTER TO . pointer_typexpr  (87)
+
+	IDENT  shift 16
+	ARRAY  shift 145
+	RECORD  shift 146
+	POINTER  shift 147
+	.  error
+
+	name  goto 148
+	pointer_typexpr  goto 184
+
+
 state 165
+	typexpr : ARRAY expr OF typexpr .  (94)
+
+	.  reduce 94
+
+
+state 166
+	field_decl : ident_list COLON typexpr .  (99)
+
+	.  reduce 99
+
+
+state 167
+	fields : field_decl SEMI fields .  (98)
+
+	.  reduce 98
+
+
+state 168
+	pointer_typexpr : ARRAY OF . typexpr  (90)
+
+	IDENT  shift 16
+	ARRAY  shift 66
+	RECORD  shift 67
+	POINTER  shift 68
+	.  error
+
+	typexpr  goto 185
+	name  goto 70
+
+
+state 169
+	expr : expr . RELOP simple  (57)
+	expr : expr . EQUAL simple  (58)
+	pointer_typexpr : ARRAY expr . OF typexpr  (89)
+
+	RELOP  shift 89
+	EQUAL  shift 91
+	OF  shift 186
+	.  error
+
+
+state 170
+	pointer_typexpr : RECORD fields . END  (91)
+
+	END  shift 187
+	.  error
+
+
+state 171
+	pointer_typexpr : POINTER TO . pointer_typexpr  (92)
+
+	IDENT  shift 16
+	ARRAY  shift 145
+	RECORD  shift 146
+	POINTER  shift 147
+	.  error
+
+	name  goto 148
+	pointer_typexpr  goto 188
+
+
+state 172
+	stmt1 : IF expr THEN stmts . elses END  (39)
+	elses : .  (44)
+
+	ELSE  shift 189
+	ELSIF  shift 190
+	END  reduce 44
+
+	elses  goto 191
+
+
+state 173
+	stmt1 : WHILE expr DO stmts . END  (40)
+
+	END  shift 192
+	.  error
+
+
+state 174
 	stmt1 : REPEAT stmts UNTIL expr .  (41)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
@@ -2129,61 +2248,83 @@ state 165
 	ELSIF  reduce 41
 
 
-state 166
+state 175
 	stmt1 : FOR name ASSIGN expr . TO expr DO stmts END  (42)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	TO  shift 179
+	TO  shift 193
 	.  error
 
 
-state 167
+state 176
 	arm : expr . COLON stmts  (49)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
 
 	RELOP  shift 89
-	COLON  shift 180
+	COLON  shift 194
 	EQUAL  shift 91
 	.  error
 
 
-state 168
+state 177
 	stmt1 : CASE expr OF arms . else_part END  (43)
 	else_part : .  (50)
 
-	ELSE  shift 181
+	ELSE  shift 195
 	END  reduce 50
 
-	else_part  goto 182
+	else_part  goto 196
 
 
-state 169
+state 178
 	arms : arm .  (47)
 	arms : arm . VBAR arms  (48)
 
-	VBAR  shift 183
+	VBAR  shift 197
 	ELSE  reduce 47
 	END  reduce 47
 
 
-state 170
+state 179
 	expr_list : expr COMMA expr_list .  (77)
 
 	.  reduce 77
 
 
-state 171
-	formal_typexpr : ARRAY OF typexpr .  (84)
+state 180
+	variable : variable SUB expr DOT DOT . expr RPAR  (80)
 
-	.  reduce 84
+	IDENT  shift 16
+	NUMBER  shift 44
+	CHAR  shift 45
+	STRING  shift 46
+	LPAR  shift 47
+	MINUS  shift 48
+	LEN  shift 49
+	NOT  shift 50
+	NIL  shift 51
+	.  error
+
+	expr  goto 198
+	name  goto 53
+	variable  goto 54
+	simple  goto 55
+	term  goto 56
+	factor  goto 57
 
 
-state 172
-	formal_typexpr : ARRAY expr OF . typexpr  (83)
+state 181
+	formal_typexpr : ARRAY OF typexpr .  (85)
+
+	.  reduce 85
+
+
+state 182
+	formal_typexpr : ARRAY expr OF . typexpr  (84)
 
 	IDENT  shift 16
 	ARRAY  shift 66
@@ -2191,23 +2332,54 @@ state 172
 	POINTER  shift 68
 	.  error
 
-	typexpr  goto 184
+	typexpr  goto 199
 	name  goto 70
 
 
-state 173
-	formal_typexpr : RECORD fields END .  (85)
-
-	.  reduce 85
-
-
-state 174
-	formal_typexpr : POINTER TO typexpr .  (86)
+state 183
+	formal_typexpr : RECORD fields END .  (86)
 
 	.  reduce 86
 
 
-state 175
+state 184
+	formal_typexpr : POINTER TO pointer_typexpr .  (87)
+
+	.  reduce 87
+
+
+state 185
+	pointer_typexpr : ARRAY OF typexpr .  (90)
+
+	.  reduce 90
+
+
+state 186
+	pointer_typexpr : ARRAY expr OF . typexpr  (89)
+
+	IDENT  shift 16
+	ARRAY  shift 66
+	RECORD  shift 67
+	POINTER  shift 68
+	.  error
+
+	typexpr  goto 200
+	name  goto 70
+
+
+state 187
+	pointer_typexpr : RECORD fields END .  (91)
+
+	.  reduce 91
+
+
+state 188
+	pointer_typexpr : POINTER TO pointer_typexpr .  (92)
+
+	.  reduce 92
+
+
+state 189
 	elses : ELSE . stmts  (45)
 	line : .  (34)
 
@@ -2222,35 +2394,35 @@ state 175
 	FOR  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 185
+	stmts  goto 201
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 176
+state 190
 	elses : ELSIF . line expr THEN stmts elses  (46)
 	line : .  (34)
 
 	.  reduce 34
 
-	line  goto 186
+	line  goto 202
 
 
-state 177
+state 191
 	stmt1 : IF expr THEN stmts elses . END  (39)
 
-	END  shift 187
+	END  shift 203
 	.  error
 
 
-state 178
+state 192
 	stmt1 : WHILE expr DO stmts END .  (40)
 
 	.  reduce 40
 
 
-state 179
+state 193
 	stmt1 : FOR name ASSIGN expr TO . expr DO stmts END  (42)
 
 	IDENT  shift 16
@@ -2264,7 +2436,7 @@ state 179
 	NIL  shift 51
 	.  error
 
-	expr  goto 188
+	expr  goto 204
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -2272,7 +2444,7 @@ state 179
 	factor  goto 57
 
 
-state 180
+state 194
 	arm : expr COLON . stmts  (49)
 	line : .  (34)
 
@@ -2289,13 +2461,13 @@ state 180
 	FOR  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 189
+	stmts  goto 205
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 181
+state 195
 	else_part : ELSE . stmts  (51)
 	line : .  (34)
 
@@ -2310,20 +2482,20 @@ state 181
 	FOR  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 190
+	stmts  goto 206
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 182
+state 196
 	stmt1 : CASE expr OF arms else_part . END  (43)
 
-	END  shift 191
+	END  shift 207
 	.  error
 
 
-state 183
+state 197
 	arms : arm VBAR . arms  (48)
 
 	IDENT  shift 16
@@ -2337,29 +2509,46 @@ state 183
 	NIL  shift 51
 	.  error
 
-	expr  goto 167
+	expr  goto 176
 	name  goto 53
 	variable  goto 54
-	arms  goto 192
-	arm  goto 169
+	arms  goto 208
+	arm  goto 178
 	simple  goto 55
 	term  goto 56
 	factor  goto 57
 
 
-state 184
-	formal_typexpr : ARRAY expr OF typexpr .  (83)
+state 198
+	expr : expr . RELOP simple  (57)
+	expr : expr . EQUAL simple  (58)
+	variable : variable SUB expr DOT DOT expr . RPAR  (80)
 
-	.  reduce 83
+	RELOP  shift 89
+	RPAR  shift 209
+	EQUAL  shift 91
+	.  error
 
 
-state 185
+state 199
+	formal_typexpr : ARRAY expr OF typexpr .  (84)
+
+	.  reduce 84
+
+
+state 200
+	pointer_typexpr : ARRAY expr OF typexpr .  (89)
+
+	.  reduce 89
+
+
+state 201
 	elses : ELSE stmts .  (45)
 
 	.  reduce 45
 
 
-state 186
+state 202
 	elses : ELSIF line . expr THEN stmts elses  (46)
 
 	IDENT  shift 16
@@ -2373,7 +2562,7 @@ state 186
 	NIL  shift 51
 	.  error
 
-	expr  goto 193
+	expr  goto 210
 	name  goto 53
 	variable  goto 54
 	simple  goto 55
@@ -2381,59 +2570,65 @@ state 186
 	factor  goto 57
 
 
-state 187
+state 203
 	stmt1 : IF expr THEN stmts elses END .  (39)
 
 	.  reduce 39
 
 
-state 188
+state 204
 	stmt1 : FOR name ASSIGN expr TO expr . DO stmts END  (42)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	DO  shift 194
+	DO  shift 211
 	.  error
 
 
-state 189
+state 205
 	arm : expr COLON stmts .  (49)
 
 	.  reduce 49
 
 
-state 190
+state 206
 	else_part : ELSE stmts .  (51)
 
 	.  reduce 51
 
 
-state 191
+state 207
 	stmt1 : CASE expr OF arms else_part END .  (43)
 
 	.  reduce 43
 
 
-state 192
+state 208
 	arms : arm VBAR arms .  (48)
 
 	.  reduce 48
 
 
-state 193
+state 209
+	variable : variable SUB expr DOT DOT expr RPAR .  (80)
+
+	.  reduce 80
+
+
+state 210
 	elses : ELSIF line expr . THEN stmts elses  (46)
 	expr : expr . RELOP simple  (57)
 	expr : expr . EQUAL simple  (58)
 
 	RELOP  shift 89
 	EQUAL  shift 91
-	THEN  shift 195
+	THEN  shift 212
 	.  error
 
 
-state 194
+state 211
 	stmt1 : FOR name ASSIGN expr TO expr DO . stmts END  (42)
 	line : .  (34)
 
@@ -2448,13 +2643,13 @@ state 194
 	FOR  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 196
+	stmts  goto 213
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 195
+state 212
 	elses : ELSIF line expr THEN . stmts elses  (46)
 	line : .  (34)
 
@@ -2471,42 +2666,43 @@ state 195
 	ELSIF  reduce 34
 	CASE  reduce 34
 
-	stmts  goto 197
+	stmts  goto 214
 	stmt_list  goto 40
 	stmt  goto 41
 	line  goto 42
 
 
-state 196
+state 213
 	stmt1 : FOR name ASSIGN expr TO expr DO stmts . END  (42)
 
-	END  shift 198
+	END  shift 215
 	.  error
 
 
-state 197
+state 214
 	elses : ELSIF line expr THEN stmts . elses  (46)
 	elses : .  (44)
 
-	ELSE  shift 175
-	ELSIF  shift 176
+	ELSE  shift 189
+	ELSIF  shift 190
 	END  reduce 44
 
-	elses  goto 199
+	elses  goto 216
 
 
-state 198
+state 215
 	stmt1 : FOR name ASSIGN expr TO expr DO stmts END .  (42)
 
 	.  reduce 42
 
 
-state 199
+state 216
 	elses : ELSIF line expr THEN stmts elses .  (46)
 
 	.  reduce 46
 
 
+State 54 contains 1 shift/reduce conflict.
 State 55 contains 2 shift/reduce conflicts.
 State 56 contains 1 shift/reduce conflict.
 State 87 contains 2 shift/reduce conflicts.
@@ -2516,5 +2712,5 @@ State 130 contains 1 shift/reduce conflict.
 State 131 contains 1 shift/reduce conflict.
 
 
-50 terminals, 42 nonterminals
-98 grammar rules, 200 states
+50 terminals, 43 nonterminals
+104 grammar rules, 217 states

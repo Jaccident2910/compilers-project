@@ -65,6 +65,7 @@ and expr_guts =
     Constant of int * ptype
   | Variable of name
   | Sub of expr * expr 
+  | Slice of expr * expr * expr
   | Select of expr * name
   | Deref of expr
   | String of symbol * int
@@ -78,6 +79,7 @@ and typexpr =
     TypeName of name 
   | Array of expr * typexpr
   | OpenArray of typexpr
+  | HeapArray of typexpr
   | Record of decl list
   | Pointer of typexpr
 

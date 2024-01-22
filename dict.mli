@@ -20,7 +20,7 @@ val fId : ident -> Print.arg
 
 (* |libid| -- type of picoPascal library procedures *)
 type libid = ChrFun | OrdFun | PrintNum | PrintChar | PrintString 
-  | NewLine | ReadChar | ExitProc | NewProc | ArgcFun | ArgvProc
+  | NewLine | ReadChar | ExitProc | NewProc | NewArr | ArgcFun | ArgvProc
   | OpenIn | CloseIn | Operator of Optree.op
 
 (* |fLibId| -- format libid for printing *)
@@ -71,7 +71,8 @@ and ptype =
 and type_guts =
     BasicType of basic_type
   | ArrayType of int * ptype
-  | OpenArrayType of openarr
+  | OpenArrayType of ptype
+  | HeapArrayType of ptype
   | RecordType of def list
   | ProcType of proc_data
   | PointerType of ptype ref
@@ -103,6 +104,8 @@ val voidtype : ptype
 val addrtype : ptype
 
 type environment
+
+val print_typeguts : type_guts -> string
 
 (* |new_block| -- add a new top block *)
 val new_block : environment -> environment
@@ -141,7 +144,9 @@ val empty : environment
 (* |row| -- construct array type *)
 val row : int -> ptype -> ptype
 
-val rowRef : def ref -> ptype -> ptype
+val rowRef : ptype -> ptype
+
+val heapArrRef: ptype -> ptype
 
 (* |mk_type| -- construct new (uniquely labelled) type *)
 val mk_type : type_guts -> Mach.metrics -> ptype

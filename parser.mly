@@ -183,6 +183,7 @@ expr_list :
 variable :      
     name                                { make_expr (Variable $1) }
   | variable SUB expr BUS               { make_expr (Sub ($1, $3)) }
+  | variable SUB expr DOT DOT expr RPAR { make_expr (Slice ($1, $3, $6))}
   | variable DOT name                   { make_expr (Select ($1, $3)) }
   | variable ARROW                      { make_expr (Deref $1) } ;
 
@@ -191,14 +192,20 @@ formal_typexpr :
   | ARRAY expr OF typexpr               { Array ($2, $4) }
   | ARRAY OF typexpr                    { OpenArray ($3) }
   | RECORD fields END                   { Record $2 }
-  | POINTER TO typexpr                  { Pointer $3 } ;
+  | POINTER TO pointer_typexpr                  { Pointer $3 } ;
 
+pointer_typexpr : 
+    name                                { TypeName $1 }
+  | ARRAY expr OF typexpr               { Array ($2, $4) }
+  | ARRAY OF typexpr                    { HeapArray ($3) }
+  | RECORD fields END                   { Record $2 }
+  | POINTER TO pointer_typexpr            { Pointer $3 } ;
 
 typexpr :       
     name                                { TypeName $1 }
   | ARRAY expr OF typexpr               { Array ($2, $4) }
   | RECORD fields END                   { Record $2 }
-  | POINTER TO typexpr                  { Pointer $3 } ;
+  | POINTER TO pointer_typexpr                  { Pointer $3 } ;
 
 fields :
     field_decl opt_semi                 { [$1] }
