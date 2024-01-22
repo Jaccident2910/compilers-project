@@ -36,7 +36,7 @@ let fId x = fStr (spelling x)
 
 (* |libid| -- type of picoPascal library procedures *)
 type libid = ChrFun | OrdFun | PrintNum | PrintChar | PrintString 
-  | NewLine | ReadChar | ExitProc | NewProc | ArgcFun | ArgvProc
+  | NewLine | ReadChar | ExitProc | NewProc | NewArr | ArgcFun | ArgvProc
   | OpenIn | CloseIn | Operator of Optree.op
 
 (* |lib_name| -- name of a library procedure *)
@@ -45,7 +45,7 @@ let lib_name x =
       PrintNum -> "print_num" | PrintChar -> "print_char" 
     | PrintString -> "print_string" | NewLine -> "newline"
     | ReadChar -> "read_char" | ChrFun -> "chr" | OrdFun -> "ord"
-    | ExitProc -> "exit" | NewProc -> "new"
+    | ExitProc -> "exit" | NewProc -> "new" | NewArr -> "newrow"
     | ArgcFun -> "argc" | ArgvProc -> "argv"
     | OpenIn -> "open_in" | CloseIn -> "close_in"
     | Operator op -> sprintf "$" [Optree.fOp op]
@@ -112,7 +112,8 @@ and ptype =
 and type_guts =
     BasicType of basic_type
   | ArrayType of int * ptype
-  | OpenArrayType of openarr
+  | OpenArrayType of ptype
+  | HeapArrayType of ptype
   | RecordType of def list
   | ProcType of proc_data
   | PointerType of ptype ref
@@ -148,6 +149,23 @@ type environment = Env of (def list * def IdMap.t)
 
 (* An environment tracks its top layer as a list, for use in making
 formal parameter lists *)
+
+let rec print_typeguts theType = 
+    match theType with
+    BasicType t1 ->
+        begin match t1 with
+          VoidType -> "Void"
+          | IntType -> "Int"
+          | CharType -> "Char"
+          | BoolType -> "Bool"
+          | AddrType -> "Address"
+        end
+    | ArrayType (n, t2) -> "Array of " ^ (print_typeguts t2.t_guts)
+    | OpenArrayType t3 -> "Open Array of " ^ (print_typeguts t3.t_guts)
+    | RecordType listy -> "Record"
+    | ProcType dataProc -> "Procedure"
+    | PointerType refType -> "Pointer"
+    | _ -> "Some other type???"
 
 (* |add_def| -- add definition to environment *)
 let add_def d m = IdMap.add d.d_tag d m
@@ -213,9 +231,13 @@ let addrtype =  mk_type (BasicType AddrType) addr_rep
     let r = t.t_rep in
       mk_type (OpenArrayType t) {r_size = 0; r_align = r.r_align}*)
 
-let rowRef array theType= 
-    mk_type (OpenArrayType {o_type = theType;})
-    {r_size = 8; r_align = 4}
+let rowRef theType= 
+    mk_type (OpenArrayType theType) {r_size = 8; r_align = 4}
+
+
+let heapArrRef theType = 
+    mk_type (HeapArrayType theType) addr_rep
+
 
 
 let row n t =
@@ -241,13 +263,14 @@ let is_pointer t =
 let bound t =
   match t.t_guts with
       ArrayType (n, t1) -> n
-    | OpenArrayType o1 -> o1.o_len
     | _ -> failwith "bound"
 
 let base_type t =
   match t.t_guts with
       PointerType t1 -> !t1
     | ArrayType (n, t1) -> t1
+    | OpenArrayType t1 -> t1
+    | HeapArrayType t1 -> t1
     | _ -> failwith "base_type"
 
 let get_proc t =
@@ -264,7 +287,7 @@ let rec same_type t1 t2 =
         n1 = n2 && same_type u1 u2
     | (PointerType _, BasicType x) -> x = AddrType
     | (BasicType x, PointerType _) -> x = AddrType
-    | (OpenArrayType x, ArrayType (n, y)) -> x.o_type = y
+    | (OpenArrayType x, ArrayType (n, y)) -> x = y
     | (_, _) -> t1.t_id = t2.t_id
 
 and match_args fp1 fp2 = 
@@ -278,6 +301,8 @@ and match_args fp1 fp2 =
 let is_string t =
   match t.t_guts with
       ArrayType (n, t1) -> same_type t1 character
+      | OpenArrayType t1 -> same_type t1 character
+      | HeapArrayType t1 -> same_type t1 character
     | _ -> false
 
 let symbol_of d =
