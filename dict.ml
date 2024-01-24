@@ -162,9 +162,10 @@ let rec print_typeguts theType =
         end
     | ArrayType (n, t2) -> "Array of " ^ (print_typeguts t2.t_guts)
     | OpenArrayType t3 -> "Open Array of " ^ (print_typeguts t3.t_guts)
+    | HeapArrayType t3 -> "Heap Array of " ^ (print_typeguts t3.t_guts)
     | RecordType listy -> "Record"
     | ProcType dataProc -> "Procedure"
-    | PointerType refType -> "Pointer"
+    | PointerType refType -> "Pointer to " ^ (print_typeguts !refType.t_guts)
     | _ -> "Some other type???"
 
 (* |add_def| -- add definition to environment *)
@@ -288,6 +289,8 @@ let rec same_type t1 t2 =
     | (PointerType _, BasicType x) -> x = AddrType
     | (BasicType x, PointerType _) -> x = AddrType
     | (OpenArrayType x, ArrayType (n, y)) -> x = y
+    | (HeapArrayType t3, HeapArrayType t4) -> same_type t3 t4
+    | (PointerType t3, PointerType t4) -> same_type !t3 !t4
     | (_, _) -> t1.t_id = t2.t_id
 
 and match_args fp1 fp2 = 

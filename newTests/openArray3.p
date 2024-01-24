@@ -13,11 +13,8 @@ begin
 b := 1;
 foo(a);
 print_num(b);
-(*
-print_string("second test: ");
-d := 1;
-c[2] := 0;
-print_num(d);
-*)
 newline()
 end.
+
+
+
