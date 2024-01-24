@@ -10,3 +10,5 @@ begin
     foo(a);
     newline()
 end.
+
+

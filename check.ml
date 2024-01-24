@@ -234,7 +234,8 @@ and check_arg formal arg env =
             OpenArrayType arrayPtype -> (match t1.t_guts with 
             ArrayType (n, t2) -> if t2 <> arrayPtype then sem_error "check.ml: open array assigned array of wrong type" []
             | HeapArrayType t2 -> if t2 <> arrayPtype then sem_error "check.ml: open array assigned heap array of wrong type" [] 
-            | _ -> sem_error "argument has wrong type" [])
+            | OpenArrayType t2 -> if t2 <> arrayPtype then sem_error "check.ml: open array assigned open array of wrong type" []
+            | _ -> sem_error ("argument has wrong type " ^ print_typeguts(t1.t_guts)) [])
           end;
         if formal.d_kind = VParamDef then 
           check_var arg true
@@ -338,7 +339,7 @@ let rec check_stmt s env alloc =
         and rt = check_expr rhs env in
         check_var lhs false;
         if not (same_type lt rt) then
-          sem_error "type mismatch in assignment" []
+          sem_error ("type mismatch in assignment: " ^ print_typeguts(lt.t_guts) ^ " and " ^ print_typeguts(rt.t_guts))[]
 
     | ProcCall (p, args) ->
         let rt = check_funcall p args env (ref None) in
